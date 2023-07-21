@@ -1,0 +1,19 @@
+[allclients]
+client1 ansible_host=172.31.89.188
+client2 ansible_host=172.31.95.29
+client3 ansible_host=172.31.90.205
+
+[webservers]
+client1 ansible_host=172.31.89.188
+
+
+[appservers]
+client2 ansible_host=172.31.95.29
+
+
+[dbservers]
+client3 ansible_host=172.31.90.205
+
+
+[controller]
+controllermain ansible_host=172.31.23.86

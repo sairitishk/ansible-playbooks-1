@@ -1,0 +1,72 @@
+---
+- name: Play For Installing Nginx On Webservers & Appservers
+  hosts: all:!controller
+  become: yes
+  become_user: root
+  gather_facts: yes
+  tasks:
+  - name: Perform apt update
+    when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+    shell: apt update
+  - name: Install Nginx
+    when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+    shell: apt install -y nginx
+  - name: Start Nginx Service
+    when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+    shell: service nginx start
+  tags:
+  - nginx
+
+
+- name : Play for installing multiple packages on dbservers
+  hosts: dbservers
+  become: yes
+  become_user: root
+  gather_facts: yes
+  vars:
+  - name: "KSR"
+  tasks:
+  - name: Perform apt update
+    when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+    shell: "apt update"
+  - name: Installing stress,jq,unzip and net-tools
+    when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+    ansible.builtin.apt:
+     name: "{{item}}"
+     state: latest
+    with_items:
+     - stress
+     - unzip
+     - jq
+     - net-tools
+  tags:
+   - tools
+
+- name: Play to copy files from controller to clients
+  hosts:  all:!controller
+  become: yes
+  become_user: root
+  gather_facts: yes
+  tasks:
+  - name: Remove Default Nginx File
+    when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+    shell: rm -rf /var/www/html/index.nginx-debian.html
+  - name: Copy WebServer Files
+    when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+    ansible.builtin.copy:
+      src: "{{ item }}"
+      dest: /var/www/html/{{ item }}
+      owner: root
+      group: root
+      mode: '0644'
+    with_items:
+    - index.html
+    - scorekeeper.js
+    - style.css
+    notify: restart_nginx
+  handlers:
+  - name: restart_nginx
+    when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+    shell: service nginx start
+  tags:
+  - files

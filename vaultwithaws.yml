@@ -1,0 +1,58 @@
+#ansible-playbook -i invfile Playbooks/vault_testing.yml -vv --ask-vault-pass
+
+# NOT WORKING PROPERLY
+
+---
+  - name: Run AWS Cli Commands On All Servers
+    hosts: all:!controller
+    gather_facts: yes
+    become: yes
+    become_user: root
+    serial: 3
+    vars:
+     oppass: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          39333866333937663061383564316532343937383162643730393762396331633431343330343366
+          3439616638613134353464313135396437323536393231620a353738646665656164363838326136
+          65333134613963623065383232636164333431363136663961373064636432663761363638613832
+          3230333439363532380a616162386661343237313564623366333531663665636336353866353336
+          3030
+
+    tasks:
+       - name: Create .aws folder
+         shell: mkdir -p /root/.aws
+         ignore_errors: yes
+       - name: Copy Encrypted File To .aws folder
+         copy:
+           src: /tmp/awscreds #This Encrypted File Must Be Created Prior To Running The Playbook.
+           dest: /root/.aws/credentials
+           owner: root
+           group: root
+           mode: '0600'
+       - name: Check S3 Buckets
+         shell: aws s3 ls | cut -d " " -f 3
+         register: buckets
+       - name: Check VPC ids
+         shell: aws ec2 describe-vpcs 
+         register: vpcid
+       - name: Creating admin ritishaws
+         user:
+           name: ritishaws
+           state: present
+           comment: Admin User ritishaws
+           groups: root
+           shell: /bin/bash
+           group: root
+           password: "{{ '%s' | format(oppass) | regex_replace('\n', '') | password_hash('sha512') }}"
+           password_expire_min: 1
+       - name: Replace Password Authentication To Yes
+         ansible.builtin.lineinfile:
+           path: /etc/ssh/sshd_config
+           regexp: '^PasswordAuthentication no'
+           line: PasswordAuthentication yes
+           backup: yes
+         notify:
+         -  Restart SSH Service
+    handlers:
+      - name: Restart SSH Service
+        shell: service sshd restart
